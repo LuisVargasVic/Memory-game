@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private var movements = 0
     private var count = 0
     private var finish = false
+    private var columns = 0
     private lateinit var imageOne: ImagesMem
     private lateinit var imageTwo: ImagesMem
 
@@ -49,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         val alertDialog = android.support.v7.app.AlertDialog.Builder(this@MainActivity).create()
         alertDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         alertDialog.setMessage(message)
-        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Reiniciar") { dialogInterface, i ->
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Reiniciar") { _, _ ->
             for (index in 0 until images.size) {
                 images.removeAt(0)
             }
@@ -107,6 +108,13 @@ class MainActivity : AppCompatActivity() {
 
                     runOnUiThread {
                         images.shuffle()
+                        if ((images.size / 2)%3 == 0){
+                            columns = 3
+                            gridView.numColumns = columns
+                        } else {
+                            columns = 4
+                            gridView.numColumns = columns
+                        }
                         gridView.adapter = ImageAdapter(images)
                         gridView.onItemClickListener = AdapterView.OnItemClickListener { _, view, position, _ ->
                             numClicks += 1
@@ -118,13 +126,26 @@ class MainActivity : AppCompatActivity() {
                                 }
                                 2 -> {
                                     imageTwo = images[position]
-                                    if (imageOne.view && imageTwo.view && imageOne.type == imageTwo.type && imageOne.number != imageTwo.number){
+                                    if (imageOne.view && imageTwo.view && imageOne.type == imageTwo.type && imageOne.number != imageTwo.number
+                                        && !imageOne.match && !imageTwo.match){
                                         imageOne.match = true
                                         imageTwo.match = true
                                         checkResult(timer)
+                                    } else if (imageOne.match && imageTwo.match) {
+                                        numClicks = 0
+                                    } else if (!imageOne.match && imageTwo.match) {
+                                        numClicks = 1
+                                        gridView.adapter = ImageAdapter(images)
+                                    } else if (imageOne.match && !imageTwo.match) {
+                                        numClicks = 1
+                                        imageOne = imageTwo
+                                        gridView.adapter = ImageAdapter(images)
+                                    } else if (imageOne.type == imageTwo.type){
+                                        numClicks = 1
                                     }
                                 }
                                 3 -> {
+                                    images[position].view = false
                                     gridView.adapter = ImageAdapter(images)
                                     checkResult(timer)
                                 }
@@ -147,9 +168,12 @@ class MainActivity : AppCompatActivity() {
             finish = true
         }
         if (finish){
+            numClicks = 0
             timer.cancel()
             simpleAlertDialog("Lo lograste en $movements movimientos y te tomó $count segundos")
         } else {
+            imageOne.view = false
+            imageTwo.view = false
             movements += 1
             movementsTextView.text = ("$movements movimientos")
             numClicks = 0
@@ -175,12 +199,17 @@ class MainActivity : AppCompatActivity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val convertView: View
 
-            val layoutInflater = LayoutInflater.from(this@MainActivity)
-            convertView = layoutInflater.inflate(R.layout.image_layout, null)
+            convertView = if (columns == 3){
+                val layoutInflater = LayoutInflater.from(this@MainActivity)
+                layoutInflater.inflate(R.layout.image_layout_three, null)
+            } else {
+                val layoutInflater = LayoutInflater.from(this@MainActivity)
+                layoutInflater.inflate(R.layout.image_layout_four, null)
+            }
 
             val ivIconOpen = convertView.findViewById<ImageView>(R.id.iv_icon_open)
 
-            if (imagesMem[position].match){
+            if (imagesMem[position].match || imagesMem[position].view){
                 convertView.findViewById<RelativeLayout>(R.id.iv_icon_close).visibility = View.GONE
             }
 
