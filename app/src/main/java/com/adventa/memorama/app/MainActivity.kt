@@ -1,5 +1,8 @@
 package com.adventa.memorama.app
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.Handler
@@ -9,6 +12,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import com.squareup.picasso.Picasso
 import okhttp3.*
@@ -31,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private var columns = 0
     private lateinit var imageOne: ImagesMem
     private lateinit var imageTwo: ImagesMem
+    private lateinit var imageView: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         val image: String,
         val type: Int,
         var view: Boolean,
+        var flip: Boolean,
         var match: Boolean,
         var number: Int
     )
@@ -92,8 +99,8 @@ class MainActivity : AppCompatActivity() {
                         val obj = jsonArray.getString(i)
                         //val url = URL(obj)
                         //val image = BitmapFactory.decodeStream(url.openConnection().getInputStream())
-                        images.add(ImagesMem(obj, i, false,false, 1))
-                        images.add(ImagesMem(obj, i, false,false, 2))
+                        images.add(ImagesMem(obj, i, false,false, false,1))
+                        images.add(ImagesMem(obj, i, false,false, false,2))
                     }
 
                     val timer = Timer()
@@ -118,15 +125,20 @@ class MainActivity : AppCompatActivity() {
                         gridView.adapter = ImageAdapter(images)
                         gridView.onItemClickListener = AdapterView.OnItemClickListener { _, view, position, _ ->
                             numClicks += 1
-                            view.findViewById<RelativeLayout>(R.id.iv_icon_close).visibility = View.GONE
                             images[position].view = true
+                            imageView = view.findViewById(R.id.iv_icon)
+                            for (i in 0 until images.size){
+                                images[i].flip = false
+                            }
+                            if (!images[position].match){
+                                flipImage(imageView, images[position].image)
+                            }
                             when (numClicks) {
-                                1 -> {
-                                    imageOne = images[position]
-                                }
+                                1 -> imageOne = images[position]
                                 2 -> {
                                     imageTwo = images[position]
-                                    if (imageOne.view && imageTwo.view && imageOne.type == imageTwo.type && imageOne.number != imageTwo.number
+                                    if (imageOne.view && imageTwo.view && imageOne.type == imageTwo.type
+                                        && imageOne.number != imageTwo.number
                                         && !imageOne.match && !imageTwo.match){
                                         imageOne.match = true
                                         imageTwo.match = true
@@ -142,12 +154,18 @@ class MainActivity : AppCompatActivity() {
                                         gridView.adapter = ImageAdapter(images)
                                     } else if (imageOne.type == imageTwo.type){
                                         numClicks = 1
+                                    } else {
+                                        imageOne.view = false
+                                        imageTwo.view = true
                                     }
                                 }
                                 3 -> {
-                                    images[position].view = false
+                                    imageOne.flip = true
+                                    imageTwo.flip = true
                                     gridView.adapter = ImageAdapter(images)
                                     checkResult(timer)
+                                    imageOne = images[position]
+                                    numClicks = 1
                                 }
                             }
                         }
@@ -155,6 +173,25 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
+    }
+
+    private fun flipImage(imageView: ImageView, image: String) {
+        val oa1 = ObjectAnimator.ofFloat(imageView, "scaleX", 1f, 0f)
+        val oa2 = ObjectAnimator.ofFloat(imageView, "scaleX", 0f, 1f)
+        oa1.interpolator = DecelerateInterpolator()
+        oa2.interpolator = AccelerateDecelerateInterpolator()
+        oa1.duration = 100
+        oa2.duration = 100
+        oa1.addListener(object: AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                super.onAnimationEnd(animation)
+                Picasso.get()
+                    .load(image)
+                    .into(imageView)
+                oa2.start()
+            }
+        })
+        oa1.start()
     }
 
     private fun checkResult(timer: Timer) {
@@ -207,17 +244,39 @@ class MainActivity : AppCompatActivity() {
                 layoutInflater.inflate(R.layout.image_layout_four, null)
             }
 
-            val ivIconOpen = convertView.findViewById<ImageView>(R.id.iv_icon_open)
+            val ivIconOpen = convertView.findViewById<ImageView>(R.id.iv_icon)
 
-            if (imagesMem[position].match || imagesMem[position].view){
-                convertView.findViewById<RelativeLayout>(R.id.iv_icon_close).visibility = View.GONE
+            if (imagesMem[position].flip){
+                flipImage(ivIconOpen, R.drawable.background)
+            } else if (imagesMem[position].match || imagesMem[position].view){
+                Picasso.get()
+                    .load(imagesMem[position].image)
+                    .into(ivIconOpen)
+            } else {
+                Picasso.get()
+                    .load(R.drawable.background)
+                    .into(ivIconOpen)
             }
-
-            Picasso.get()
-                .load(imagesMem[position].image)
-                .into(ivIconOpen)
-
             return convertView
+        }
+
+        private fun flipImage(imageView: ImageView, image: Int) {
+            val oa1 = ObjectAnimator.ofFloat(imageView, "scaleX", 1f, 0f)
+            val oa2 = ObjectAnimator.ofFloat(imageView, "scaleX", 0f, 1f)
+            oa1.interpolator = DecelerateInterpolator()
+            oa2.interpolator = AccelerateDecelerateInterpolator()
+            oa1.duration = 100
+            oa2.duration = 100
+            oa1.addListener(object: AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    super.onAnimationEnd(animation)
+                    Picasso.get()
+                        .load(image)
+                        .into(imageView)
+                    oa2.start()
+                }
+            })
+            oa1.start()
         }
     }
 
