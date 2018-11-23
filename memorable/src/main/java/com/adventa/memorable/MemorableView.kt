@@ -73,6 +73,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
 
     private fun simpleAlertDialog(message: String, activity: Context){
         val alertDialog = android.support.v7.app.AlertDialog.Builder(activity).create()
+        alertDialog.setCanceledOnTouchOutside(false)
         alertDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         alertDialog.setMessage(message)
         alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Reiniciar") { _, _ ->
