@@ -25,7 +25,7 @@ import java.io.IOException
 import java.util.*
 
 /**
- * Created by jonathan on 11/16/18.
+ * Created by Luis Vargas on 11/16/18.
  */
 
 class MemorableView @kotlin.jvm.JvmOverloads constructor(
@@ -43,8 +43,9 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
     private var count = 0
     private var finish = false
     private var columns = 0
-    private lateinit var imageOne: ImagesMem
-    private lateinit var imageTwo: ImagesMem
+    private var imageOne: Int = 0
+    private var imageTwo: Int = 0
+    private var listener: MemorableListener? = null
     private lateinit var imageView: ImageView
 
     init {
@@ -81,13 +82,13 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
             finish = false
             count = 0
             movements = 0
-            setUpMemorable(activity)
+            setUpMemorable(activity, listener)
             alertDialog.dismiss()
         }
         alertDialog.show()
     }
 
-    fun setUpMemorable(activity: Context) {
+    fun setUpMemorable(activity: Context, listener: MemorableListener?) {
         val client = OkHttpClient()
 
         val request = Request.Builder()
@@ -131,6 +132,8 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                     }, 1000, 1000)
 
                     this@MemorableView.activity!!.runOnUiThread {
+                        this@MemorableView.listener = listener
+                        listener?.onInitialize()
                         images.shuffle()
                         if ((images.size / 2)%3 == 0){
                             columns = 3
@@ -147,41 +150,55 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                             for (i in 0 until images.size){
                                 images[i].flip = false
                             }
-                            if (!images[position].match){
-                                flipImage(imageView, images[position].image)
-                            }
                             when (numClicks) {
-                                1 -> imageOne = images[position]
+                                1 -> {
+                                    imageOne = position
+                                    if (!images[imageOne].match){
+                                        flipImage(imageView, images[imageOne].image)
+                                    }
+                                }
                                 2 -> {
-                                    imageTwo = images[position]
-                                    if (imageOne.view && imageTwo.view && imageOne.type == imageTwo.type
-                                        && imageOne.number != imageTwo.number
-                                        && !imageOne.match && !imageTwo.match){
-                                        imageOne.match = true
-                                        imageTwo.match = true
+                                    imageTwo = position
+                                    if (!images[imageTwo].match && imageOne != imageTwo){
+                                        flipImage(imageView, images[imageTwo].image)
+                                    }
+                                    if (images[imageOne].view && images[imageTwo].view
+                                        && images[imageOne].type == images[imageTwo].type
+                                        && images[imageOne].number != images[imageTwo].number
+                                        && !images[imageOne].match && !images[imageTwo].match) {
+                                        images[imageOne].match = true
+                                        images[imageTwo].match = true
                                         checkResult(timer, activity)
-                                    } else if (imageOne.match && imageTwo.match) {
+                                    } else if (images[imageOne].match && images[imageTwo].match) {
                                         numClicks = 0
-                                    } else if (!imageOne.match && imageTwo.match) {
+                                    } else if (!images[imageOne].match && images[imageTwo].match) {
                                         numClicks = 1
                                         gridView.adapter = ImageAdapter(images)
-                                    } else if (imageOne.match && !imageTwo.match) {
+                                    } else if (images[imageOne].match && !images[imageTwo].match) {
                                         numClicks = 1
                                         imageOne = imageTwo
                                         gridView.adapter = ImageAdapter(images)
-                                    } else if (imageOne.type == imageTwo.type){
-                                        numClicks = 1
+                                    } else if (images[imageOne].type == images[imageTwo].type) {
+                                         numClicks = 1
                                     } else {
-                                        imageOne.view = false
-                                        imageTwo.view = true
+                                        images[imageOne].view = false
+                                        images[imageTwo].view = true
                                     }
                                 }
                                 3 -> {
-                                    imageOne.flip = true
-                                    imageTwo.flip = true
+                                    if (imageOne != position){
+                                        images[imageOne].flip = true
+                                    }
+                                    if (imageTwo != position){
+                                        images[imageTwo].flip = true
+                                    }
                                     gridView.adapter = ImageAdapter(images)
                                     checkResult(timer, activity)
-                                    imageOne = images[position]
+                                    imageOne = position
+                                    images[imageOne].view = true
+                                    if (!images[imageOne].match){
+                                        flipImage(imageView, images[imageOne].image)
+                                    }
                                     numClicks = 1
                                 }
                             }
@@ -190,6 +207,14 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                 }
             })
         }
+    }
+
+    fun getMovements(): Int {
+        return movements
+    }
+
+    fun getTime(): Int {
+        return count
     }
 
     private fun flipImage(imageView: ImageView, image: String) {
@@ -224,10 +249,11 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         if (finish){
             numClicks = 0
             timer.cancel()
+            listener?.onFinalize()
             simpleAlertDialog("Lo lograste en $movements movimientos y te tomó $count segundos", activity)
         } else {
-            imageOne.view = false
-            imageTwo.view = false
+            images[imageOne].view = false
+            images[imageTwo].view = false
             movements += 1
             movementsTextView.text = ("$movements movimientos")
             numClicks = 0
@@ -261,18 +287,18 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                 layoutInflater.inflate(R.layout.image_layout_four, null)
             }
 
-            val ivIconOpen = convertView.findViewById<ImageView>(R.id.iv_icon)
+            val ivIcon = convertView.findViewById<ImageView>(R.id.iv_icon)
 
             if (imagesMem[position].flip){
-                flipImage(ivIconOpen, R.drawable.background)
+                flipImage(ivIcon, R.drawable.background)
             } else if (imagesMem[position].match || imagesMem[position].view){
                 Picasso.get()
                     .load(imagesMem[position].image)
-                    .into(ivIconOpen)
-            } else {
+                    .into(ivIcon)
+            } else if (!imagesMem[position].view){
                 Picasso.get()
                     .load(R.drawable.background)
-                    .into(ivIconOpen)
+                    .into(ivIcon)
             }
             return convertView
         }
