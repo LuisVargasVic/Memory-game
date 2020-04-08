@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Memorama.iml" filepath="$PROJECT_DIR$/Memorama.iml" />
+      <module fileurl="file://$PROJECT_DIR$/MemorableDev.iml" filepath="$PROJECT_DIR$/MemorableDev.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/base/base.iml" filepath="$PROJECT_DIR$/base/base.iml" />
       <module fileurl="file://$PROJECT_DIR$/memorable/memorable.iml" filepath="$PROJECT_DIR$/memorable/memorable.iml" />
