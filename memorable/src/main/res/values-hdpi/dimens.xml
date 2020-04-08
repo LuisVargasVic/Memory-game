@@ -1,0 +1,9 @@
+<resources>
+	<dimen name="icon_width_three">112dp</dimen>
+	<dimen name="icon_height_three">112dp</dimen>
+	<dimen name="icon_width_four">88dp</dimen>
+	<dimen name="icon_height_four">88dp</dimen>
+	<dimen name="grid_view_margin">8dp</dimen>
+	<dimen name="grid_view_vertical">8dp</dimen>
+	<dimen name="grid_view_horizontal">8dp</dimen>
+</resources>
