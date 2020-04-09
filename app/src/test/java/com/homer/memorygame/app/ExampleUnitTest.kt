@@ -1,4 +1,4 @@
-package com.adventa.memorama.app
+package com.homer.memorygame.app
 
 import org.junit.Test
 

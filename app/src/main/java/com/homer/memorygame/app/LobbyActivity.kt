@@ -1,4 +1,4 @@
-package com.adventa.memorama.app
+package com.homer.memorygame.app
 
 import android.content.Intent
 import android.os.Bundle
@@ -9,8 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.adventa.memorama.app.databinding.ActivityLobbyBinding
-import com.adventa.memorama.app.databinding.ItemLobbyBinding
+import com.homer.memorygame.app.databinding.ActivityLobbyBinding
+import com.homer.memorygame.app.databinding.ItemLobbyBinding
 
 class LobbyActivity : AppCompatActivity() {
 

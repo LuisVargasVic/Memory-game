@@ -1,4 +1,4 @@
-package com.adventa.memorable
+package com.homer.memorygame
 
 import android.app.Activity
 import android.content.Context
@@ -14,22 +14,21 @@ import androidx.appcompat.app.AlertDialog
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.adventa.memorable.databinding.ViewVictoryBinding
+import com.homer.memorygame.databinding.ItemMemoryBinding
+import com.homer.memorygame.databinding.ViewVictoryBinding
 import java.util.*
 
 /**
  * Created by Luis Vargas on 11/16/18.
  */
 
-class MemorableView @kotlin.jvm.JvmOverloads constructor(
+class MemoryGameView @kotlin.jvm.JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : RelativeLayout(context, attrs, defStyleAttr) {
 
-    private var activity: Activity? = null
-    private lateinit var recyclerView: RecyclerView
     private lateinit var movesTextView: TextView
-    private lateinit var timeTextView: TextView
     private lateinit var memoryItems: MutableList<MemoryItem>
+    private var activity: Activity? = null
     private var numClicks = 0
     private var moves = 0
     private var seconds = 0
@@ -37,8 +36,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
     private var finish = false
     private var itemOne: Int? = null
     private var itemTwo: Int? = null
-    private var listener: MemorableListener? = null
-    private lateinit var imageView: ImageView
+    private var listener: MemoryGameListener? = null
     private var mTimer: Timer? = null
 
     companion object {
@@ -54,7 +52,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
 
         LayoutInflater.from(activity)
             .cloneInContext(ContextThemeWrapper(context, R.style.AppTheme))
-            .inflate(R.layout.memorable_view, this)
+            .inflate(R.layout.memory_game_view, this)
     }
 
     private fun getActivity(): Activity? {
@@ -100,7 +98,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
     }
 
     fun setUpMemorable(
-        listener: MemorableListener?,
+        listener: MemoryGameListener?,
         memoryItems: MutableList<MemoryItem>,
         numClicks: Int,
         init: Boolean,
@@ -117,10 +115,9 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         this.numClicks = numClicks
         this.memoryItems = memoryItems
         this.span = span
-        timeTextView = findViewById(R.id.tv_user_time)
+        val timeTextView = findViewById<TextView>(R.id.tv_user_time)
         val stringTime = if (seconds == 1) R.string.activity_memory_game_second else R.string.activity_memory_game_seconds
         timeTextView.text = activity?.getString(stringTime, seconds)
-        recyclerView = findViewById(R.id.recycler_view)
         movesTextView = findViewById(R.id.tv_user_moves)
         val stringMoves= if (moves == 1) R.string.activity_memory_game_move else R.string.activity_memory_game_moves
         movesTextView.text = activity?.getString(stringMoves, moves)
@@ -132,22 +129,24 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         mTimer = Timer()
         mTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                this@MemorableView.activity!!.runOnUiThread {
-                    this@MemorableView.seconds++
-                    val string = if (this@MemorableView.seconds == 1) R.string.activity_memory_game_second else R.string.activity_memory_game_seconds
-                    timeTextView.text = activity?.getString(string, this@MemorableView.seconds)
+                this@MemoryGameView.activity!!.runOnUiThread {
+                    this@MemoryGameView.seconds++
+                    val string = if (this@MemoryGameView.seconds == 1) R.string.activity_memory_game_second else R.string.activity_memory_game_seconds
+                    timeTextView.text = activity?.getString(string, this@MemoryGameView.seconds)
                 }
             }
         }, 1000, 1000)
 
-        this@MemorableView.listener = listener
+        checkResult(mTimer, activity!!)
+
+        this@MemoryGameView.listener = listener
         if (init) this.memoryItems.shuffle()
+        val recyclerView = findViewById<RecyclerView>(R.id.recycler_view)
         recyclerView.apply {
             layoutManager = GridLayoutManager(context, span)
         }
         recyclerView.adapter = MemoryGameAdapter()
         isClickable = true
-
     }
 
     fun getMoves(): Int {
@@ -168,11 +167,14 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
             listener?.onFinalize()
             simpleAlertDialog(activity)
         } else {
-            memoryItems[itemOne!!].view = false
-            memoryItems[itemTwo!!].view = false
-            moves += 1
-            val stringMoves= if (moves == 1) R.string.activity_memory_game_move else R.string.activity_memory_game_moves
-            movesTextView.text = activity.getString(stringMoves, moves)
+            if (itemOne != null && itemTwo != null) {
+                memoryItems[itemOne!!].view = false
+                memoryItems[itemTwo!!].view = false
+                moves += 1
+                val stringMoves =
+                    if (moves == 1) R.string.activity_memory_game_move else R.string.activity_memory_game_moves
+                movesTextView.text = activity.getString(stringMoves, moves)
+            }
         }
     }
 
@@ -203,17 +205,24 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val layoutInflater = LayoutInflater.from(activity!!.applicationContext)
+
+            val inflater = LayoutInflater.from(activity)
                 .cloneInContext(ContextThemeWrapper(context, R.style.AppTheme))
-            val mConvertView = layoutInflater.inflate(R.layout.image_layout, parent, false)
-            return ViewHolder(mConvertView)
+
+            val itemMemoryBinding: ItemMemoryBinding = DataBindingUtil.inflate(
+                    inflater,
+                R.layout.item_memory,
+                parent,
+                false
+            )
+            return ViewHolder(itemMemoryBinding = itemMemoryBinding)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             holder.bind(memoryItems[position], position)
         }
 
-        inner class ViewHolder(itemView: View): RecyclerView.ViewHolder(itemView), OnClickListener {
+        inner class ViewHolder(val itemMemoryBinding: ItemMemoryBinding): RecyclerView.ViewHolder(itemMemoryBinding.root), OnClickListener {
 
             private lateinit var mMemoryItem: MemoryItem
             private var mPosition: Int? = null
@@ -222,14 +231,13 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                 mPosition = position
                 mMemoryItem = imageMem
 
-                val ivIcon = itemView.findViewById<ImageView>(R.id.iv_icon)
-                ivIcon.setOnClickListener(this)
+                itemMemoryBinding.ivMemory.setOnClickListener(this)
 
                 if (mPosition != null) {
                     if (memoryItems[mPosition!!].match || memoryItems[mPosition!!].view) {
-                        ivIcon.flipImage(memoryItems[mPosition!!].image)
+                        itemMemoryBinding.ivMemory.flipImage(memoryItems[mPosition!!].image)
                     } else if (!memoryItems[mPosition!!].view) {
-                        ivIcon.flipImage(R.drawable.background)
+                        itemMemoryBinding.ivMemory.flipImage(R.drawable.background)
                     }
                 }
             }
@@ -238,12 +246,11 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                 if (isClickable) {
                     numClicks += 1
                     memoryItems[mPosition!!].view = true
-                    imageView = itemView.findViewById(R.id.iv_icon)
                     when (numClicks) {
                         1 -> {
                             itemOne = mPosition!!
                             if (!memoryItems[itemOne!!].match) {
-                                imageView.flipImage(memoryItems[itemOne!!].image)
+                                itemMemoryBinding.ivMemory.flipImage(memoryItems[itemOne!!].image)
                             } else {
                                 numClicks = 0
                             }
@@ -251,7 +258,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
                         2 -> {
                             itemTwo = mPosition!!
                             if (!memoryItems[itemTwo!!].match && itemOne != itemTwo) {
-                                imageView.flipImage(memoryItems[itemTwo!!].image)
+                                itemMemoryBinding.ivMemory.flipImage(memoryItems[itemTwo!!].image)
                             } else {
                                 numClicks = 1
                                 return

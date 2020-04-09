@@ -1,4 +1,4 @@
-package com.adventa.memorama.app
+package com.homer.memorygame.app
 
 /**
  * Created by Luis Vargas on 08/04/20.
