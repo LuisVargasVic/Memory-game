@@ -5,6 +5,6 @@ package com.homer.memorygame.app
  */
 
 data class Layout(
-    val columns: Int,
-    val rows: Int
+    val rows: Int,
+    val columns: Int
 )
