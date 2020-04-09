@@ -12,11 +12,12 @@ class MemorableBuilder (
     init: Boolean,
     imageOne: Int?,
     imageTwo: Int?,
-    movements: Int,
-    time: Int
+    moves: Int,
+    seconds: Int,
+    span: Int
 ){
 
     init {
-        memorableView.setUpMemorable(listener, memoryItem, numClicks, init, imageOne, imageTwo, movements, time)
+        memorableView.setUpMemorable(listener, memoryItem, numClicks, init, imageOne, imageTwo, moves, seconds, span)
     }
 }

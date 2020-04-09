@@ -3,16 +3,18 @@ package com.adventa.memorable
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Handler
 import android.os.Parcelable
 import android.util.AttributeSet
-import android.util.Log
 import android.view.*
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.adventa.memorable.databinding.ViewVictoryBinding
 import java.util.*
 
 /**
@@ -25,12 +27,13 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
 
     private var activity: Activity? = null
     private lateinit var recyclerView: RecyclerView
-    private lateinit var movementsTextView: TextView
+    private lateinit var movesTextView: TextView
     private lateinit var timeTextView: TextView
     private lateinit var memoryItems: MutableList<MemoryItem>
     private var numClicks = 0
-    private var movements = 0
-    private var count = 0
+    private var moves = 0
+    private var seconds = 0
+    private var span = 0
     private var finish = false
     private var itemOne: Int? = null
     private var itemTwo: Int? = null
@@ -66,21 +69,32 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         return null
     }
 
-    private fun simpleAlertDialog(message: String, activity: Context){
+    private fun simpleAlertDialog(activity: Activity){
         val alertDialog = AlertDialog.Builder(activity).create()
         alertDialog.setCanceledOnTouchOutside(false)
         alertDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        alertDialog.setMessage(message)
-        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Reiniciar") { _, _ ->
+        val inflater = activity.layoutInflater
+        val bodyView: ViewVictoryBinding = DataBindingUtil.inflate(inflater, R.layout.view_victory, this, false)
+        bodyView.tvMovements.text = activity.getString(R.string.activity_memory_game_moves, moves)
+        bodyView.tvTime.text = activity.getString(R.string.activity_memory_game_seconds, seconds)
+        alertDialog.setView(bodyView.root)
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, activity.getString(R.string.activity_memory_game_restart)) { _, _ ->
             finish = false
-            count = 0
-            movements = 0
+            seconds = 0
+            moves = 0
             memoryItems.forEach {
                 it.match = false
                 it.view = false
             }
-            setUpMemorable(listener, memoryItems, 0, true, null, null, 0, 0)
+            setUpMemorable(listener, memoryItems, 0, true, null, null, 0, 0, span)
             alertDialog.dismiss()
+        }
+        alertDialog.setOnKeyListener { _, keyCode, _ ->
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                alertDialog.dismiss()
+                activity.finish()
+            }
+            true
         }
         alertDialog.show()
     }
@@ -92,71 +106,73 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         init: Boolean,
         imageOne: Int?,
         imageTwo: Int?,
-        movements: Int,
-        count: Int
+        moves: Int,
+        seconds: Int,
+        span: Int
     ) {
-        this.movements = movements
-        this.count = count
+        this.moves = moves
+        this.seconds = seconds
         this.itemOne = imageOne
         this.itemTwo = imageTwo
         this.numClicks = numClicks
         this.memoryItems = memoryItems
-        Log.wtf("memoryItems", this.memoryItems.size.toString())
+        this.span = span
         timeTextView = findViewById(R.id.tv_user_time)
-        timeTextView.text = ("$count segundos")
+        val stringTime = if (seconds == 1) R.string.activity_memory_game_second else R.string.activity_memory_game_seconds
+        timeTextView.text = activity?.getString(stringTime, seconds)
         recyclerView = findViewById(R.id.recycler_view)
-        movementsTextView = findViewById(R.id.tv_user_movements)
-        movementsTextView.text = ("$movements movimientos")
+        movesTextView = findViewById(R.id.tv_user_moves)
+        val stringMoves= if (moves == 1) R.string.activity_memory_game_move else R.string.activity_memory_game_moves
+        movesTextView.text = activity?.getString(stringMoves, moves)
+
+        findViewById<ImageView>(R.id.iv_back).setOnClickListener {
+            activity?.onBackPressed()
+        }
 
         mTimer = Timer()
         mTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 this@MemorableView.activity!!.runOnUiThread {
-                    this@MemorableView.count++
-                    timeTextView.text = ("${this@MemorableView.count} segundos")
+                    this@MemorableView.seconds++
+                    val string = if (this@MemorableView.seconds == 1) R.string.activity_memory_game_second else R.string.activity_memory_game_seconds
+                    timeTextView.text = activity?.getString(string, this@MemorableView.seconds)
                 }
             }
         }, 1000, 1000)
 
         this@MemorableView.listener = listener
-        listener?.onInitialize()
         if (init) this.memoryItems.shuffle()
         recyclerView.apply {
-            layoutManager = GridLayoutManager(context, 3)
+            layoutManager = GridLayoutManager(context, span)
         }
         recyclerView.adapter = MemoryGameAdapter()
+        isClickable = true
 
     }
 
-    fun getMovements(): Int {
-        return movements
+    fun getMoves(): Int {
+        return moves
     }
 
-    fun getTime(): Int {
-        return count
+    fun getSeconds(): Int {
+        return seconds
     }
 
-    private fun checkResult(timer: Timer?, activity: Context) {
-        var matches = 0
-        for (i in 0 until memoryItems.size){
-            if (memoryItems[i].match){
-                matches++
-            }
-        }
-        if (matches == memoryItems.size){
+    private fun checkResult(timer: Timer?, activity: Activity) {
+        if (memoryItems.filter { it.match }.size == memoryItems.size){
             finish = true
         }
         if (finish){
             numClicks = 0
             timer?.cancel()
             listener?.onFinalize()
-            simpleAlertDialog("Lo lograste en $movements movimientos y te tomó $count segundos", activity)
+            simpleAlertDialog(activity)
         } else {
             memoryItems[itemOne!!].view = false
             memoryItems[itemTwo!!].view = false
-            movements += 1
-            movementsTextView.text = ("$movements movimientos")
-            numClicks = 0
+            moves += 1
+            val stringMoves= if (moves == 1) R.string.activity_memory_game_move else R.string.activity_memory_game_moves
+            movesTextView.text = activity.getString(stringMoves, moves)
         }
     }
 
@@ -176,7 +192,7 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         return itemTwo
     }
 
-    internal inner class MemoryGameAdapter() : RecyclerView.Adapter<MemoryGameAdapter.ViewHolder>() {
+    internal inner class MemoryGameAdapter : RecyclerView.Adapter<MemoryGameAdapter.ViewHolder>() {
 
         override fun getItemCount(): Int {
             return memoryItems.size
@@ -199,8 +215,8 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
 
         inner class ViewHolder(itemView: View): RecyclerView.ViewHolder(itemView), OnClickListener {
 
-            lateinit var mMemoryItem: MemoryItem
-            var mPosition: Int? = null
+            private lateinit var mMemoryItem: MemoryItem
+            private var mPosition: Int? = null
 
             fun bind(imageMem: MemoryItem, position: Int) {
                 mPosition = position
@@ -219,52 +235,47 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
             }
 
             override fun onClick(p0: View?) {
-                numClicks += 1
-                memoryItems[mPosition!!].view = true
-                imageView = itemView.findViewById(R.id.iv_icon)
-                when (numClicks) {
-                    1 -> {
-                        itemOne = mPosition!!
-                        if (!memoryItems[itemOne!!].match){
-                            imageView.flipImage(memoryItems[itemOne!!].image)
+                if (isClickable) {
+                    numClicks += 1
+                    memoryItems[mPosition!!].view = true
+                    imageView = itemView.findViewById(R.id.iv_icon)
+                    when (numClicks) {
+                        1 -> {
+                            itemOne = mPosition!!
+                            if (!memoryItems[itemOne!!].match) {
+                                imageView.flipImage(memoryItems[itemOne!!].image)
+                            } else {
+                                numClicks = 0
+                            }
                         }
-                    }
-                    2 -> {
-                        itemTwo = mPosition!!
-                        if (!memoryItems[itemTwo!!].match && itemOne != itemTwo){
-                            imageView.flipImage(memoryItems[itemTwo!!].image)
-                        }
-                        if (memoryItems[itemOne!!].view && memoryItems[itemTwo!!].view
-                            && memoryItems[itemOne!!].type == memoryItems[itemTwo!!].type
-                            && memoryItems[itemOne!!].number != memoryItems[itemTwo!!].number
-                            && !memoryItems[itemOne!!].match && !memoryItems[itemTwo!!].match) {
-                            memoryItems[itemOne!!].match = true
-                            memoryItems[itemTwo!!].match = true
-                            checkResult(mTimer, activity!!)
-                        } else if (memoryItems[itemOne!!].match && memoryItems[itemTwo!!].match) {
+                        2 -> {
+                            itemTwo = mPosition!!
+                            if (!memoryItems[itemTwo!!].match && itemOne != itemTwo) {
+                                imageView.flipImage(memoryItems[itemTwo!!].image)
+                            } else {
+                                numClicks = 1
+                                return
+                            }
+                            if (memoryItems[itemOne!!].view && memoryItems[itemTwo!!].view
+                                && memoryItems[itemOne!!].type == memoryItems[itemTwo!!].type
+                                && memoryItems[itemOne!!].number != memoryItems[itemTwo!!].number
+                            ) {
+                                memoryItems[itemOne!!].match = true
+                                memoryItems[itemTwo!!].match = true
+                            } else {
+                                isClickable = false
+                                val handler = Handler()
+                                handler.postDelayed({
+                                    memoryItems[itemOne!!].view = false
+                                    memoryItems[itemTwo!!].view = false
+                                    notifyItemChanged(itemOne!!)
+                                    notifyItemChanged(itemTwo!!)
+                                    isClickable = true
+                                }, 1000)
+                            }
                             numClicks = 0
-                        } else if (!memoryItems[itemOne!!].match && memoryItems[itemTwo!!].match) {
-                            numClicks = 1
-                        } else if (memoryItems[itemOne!!].match && !memoryItems[itemTwo!!].match) {
-                            numClicks = 1
-                            itemOne = itemTwo
-                        } else if (memoryItems[itemOne!!].type == memoryItems[itemTwo!!].type) {
-                            numClicks = 1
+                            checkResult(mTimer, activity!!)
                         }
-                    }
-                    3 -> {
-                        if (itemOne!! != mPosition) {
-                            notifyItemChanged(itemOne!!)
-                        }
-                        if (itemTwo!! != mPosition) {
-                            notifyItemChanged(itemTwo!!)
-                        }
-                        checkResult(mTimer, activity!!)
-                        itemOne = mPosition!!
-                        if (!memoryItems[itemOne!!].match){
-                            imageView.flipImage(memoryItems[itemOne!!].image)
-                        }
-                        numClicks = 1
                     }
                 }
             }

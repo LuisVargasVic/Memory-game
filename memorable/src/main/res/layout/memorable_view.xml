@@ -1,51 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		xmlns:tools="http://schemas.android.com/tools"
-		style="@style/AppTheme"
-		android:id="@+id/main_layout"
-		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:focusableInTouchMode="true"
-		android:orientation="vertical"
-		android:visibility="visible">
-	
-	<RelativeLayout
-			android:id="@+id/rl_user_info"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content">
-		
-		<TextView
-				android:id="@+id/tv_user_movements"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_margin="12dp"
-				android:textSize="18sp"
-				android:text="0 movimientos"
-				tools:ignore="RtlSymmetry"/>
-		
-		<TextView
-				android:id="@+id/tv_user_time"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_alignParentEnd="true"
-				android:layout_alignParentTop="true"
-				android:layout_margin="12dp"
-				android:textSize="18sp"
-				android:text="0 segundos"
-				tools:ignore="RtlSymmetry" />
-	
-	</RelativeLayout>
-	
-	<androidx.recyclerview.widget.RecyclerView
-			android:id="@+id/recycler_view"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-			android:layout_margin="@dimen/grid_view_margin"
-			android:gravity="center"
-			android:horizontalSpacing="@dimen/grid_view_horizontal"
-			android:verticalSpacing="@dimen/grid_view_vertical"
-			android:layout_below="@+id/rl_user_info"
-			tools:listitem="@layout/image_layout" />
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/main_layout"
+		android:background="@color/colorAccent"
+        style="@style/AppTheme"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusableInTouchMode="true"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/rl_user_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_margin="8dp"
+                android:contentDescription="@string/activity_memory_game_back"
+                android:src="@drawable/back"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+                android:id="@+id/tv_user_moves"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+				android:gravity="end"
+                android:textColor="@android:color/white"
+                android:textSize="24sp"
+				app:layout_constraintStart_toEndOf="@id/iv_back"
+                app:layout_constraintEnd_toStartOf="@id/tv_user_time"
+                app:layout_constraintTop_toTopOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"
+                tools:text="0 moves" />
+
+        <TextView
+                android:id="@+id/tv_user_time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_margin="8dp"
+				android:gravity="end"
+				android:textColor="@android:color/black"
+                android:textSize="24sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+				app:layout_constraintStart_toEndOf="@id/tv_user_moves"
+                app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="parent"
+                tools:text="0 seconds" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@+id/rl_user_info"
+            android:layout_margin="@dimen/grid_view_margin"
+            android:gravity="center"
+            android:horizontalSpacing="@dimen/grid_view_horizontal"
+            android:verticalSpacing="@dimen/grid_view_vertical"
+            tools:listitem="@layout/image_layout" />
 
 </RelativeLayout>

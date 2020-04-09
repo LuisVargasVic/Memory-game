@@ -6,8 +6,6 @@ package com.adventa.memorable
 
 interface MemorableListener {
 
-    fun onInitialize()
-
     fun onFinalize()
 
 }
