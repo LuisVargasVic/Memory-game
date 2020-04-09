@@ -2,11 +2,13 @@
 <RelativeLayout
 		xmlns:android="http://schemas.android.com/apk/res/android"
 		xmlns:tools="http://schemas.android.com/tools"
+		style="@style/AppTheme"
 		android:id="@+id/main_layout"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		android:focusableInTouchMode="true"
-		android:orientation="vertical" android:visibility="visible">
+		android:orientation="vertical"
+		android:visibility="visible">
 	
 	<RelativeLayout
 			android:id="@+id/rl_user_info"
@@ -35,16 +37,15 @@
 	
 	</RelativeLayout>
 	
-	<GridView
-			android:id="@+id/grid_view"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
+	<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/recycler_view"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
 			android:layout_margin="@dimen/grid_view_margin"
 			android:gravity="center"
-			android:numColumns="3"
 			android:horizontalSpacing="@dimen/grid_view_horizontal"
 			android:verticalSpacing="@dimen/grid_view_vertical"
 			android:layout_below="@+id/rl_user_info"
-			tools:listitem="@layout/image_layout_three" />
+			tools:listitem="@layout/image_layout" />
 
 </RelativeLayout>

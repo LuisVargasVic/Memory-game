@@ -1,18 +1,22 @@
 package com.adventa.memorable
 
-import android.content.Context
-
 /**
  * Created by Luis Vargas on 11/16/18.
  */
 
 class MemorableBuilder (
     memorableView: MemorableView,
-    activity: Context,
-    listener: MemorableListener
+    listener: MemorableListener,
+    memoryItem: MutableList<MemoryItem>,
+    numClicks: Int,
+    init: Boolean,
+    imageOne: Int?,
+    imageTwo: Int?,
+    movements: Int,
+    time: Int
 ){
 
     init {
-        memorableView.setUpMemorable(activity, listener)
+        memorableView.setUpMemorable(listener, memoryItem, numClicks, init, imageOne, imageTwo, movements, time)
     }
 }

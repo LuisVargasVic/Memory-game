@@ -1,27 +1,18 @@
 package com.adventa.memorable
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.ContextWrapper
-import android.os.Handler
-import android.support.v7.app.AlertDialog
+import android.os.Parcelable
 import android.util.AttributeSet
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.view.Window
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.DecelerateInterpolator
-import android.widget.*
-import com.squareup.picasso.Picasso
-import okhttp3.*
-import org.json.JSONObject
-import java.io.IOException
+import android.util.Log
+import android.view.*
+import android.widget.ImageView
+import android.widget.RelativeLayout
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.util.*
 
 /**
@@ -33,20 +24,23 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
 ) : RelativeLayout(context, attrs, defStyleAttr) {
 
     private var activity: Activity? = null
-    private lateinit var gridView: GridView
+    private lateinit var recyclerView: RecyclerView
     private lateinit var movementsTextView: TextView
     private lateinit var timeTextView: TextView
-    private var images: MutableList<ImagesMem> = mutableListOf()
-    private var mHandler: Handler? = null
+    private lateinit var memoryItems: MutableList<MemoryItem>
     private var numClicks = 0
     private var movements = 0
     private var count = 0
     private var finish = false
-    private var columns = 0
-    private var imageOne: Int = 0
-    private var imageTwo: Int = 0
+    private var itemOne: Int? = null
+    private var itemTwo: Int? = null
     private var listener: MemorableListener? = null
     private lateinit var imageView: ImageView
+    private var mTimer: Timer? = null
+
+    companion object {
+        const val TAG = "MemorableView"
+    }
 
     init {
         activity = getActivity()
@@ -55,8 +49,9 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
             throw RuntimeException(String.format("%s must be call from activity", TAG))
         }
 
-        LayoutInflater.from(activity).inflate(R.layout.memorable_view, this)
-
+        LayoutInflater.from(activity)
+            .cloneInContext(ContextThemeWrapper(context, R.style.AppTheme))
+            .inflate(R.layout.memorable_view, this)
     }
 
     private fun getActivity(): Activity? {
@@ -72,142 +67,65 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
     }
 
     private fun simpleAlertDialog(message: String, activity: Context){
-        val alertDialog = android.support.v7.app.AlertDialog.Builder(activity).create()
+        val alertDialog = AlertDialog.Builder(activity).create()
         alertDialog.setCanceledOnTouchOutside(false)
         alertDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         alertDialog.setMessage(message)
         alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "Reiniciar") { _, _ ->
-            for (index in 0 until images.size) {
-                images.removeAt(0)
-            }
             finish = false
             count = 0
             movements = 0
-            setUpMemorable(activity, listener)
+            memoryItems.forEach {
+                it.match = false
+                it.view = false
+            }
+            setUpMemorable(listener, memoryItems, 0, true, null, null, 0, 0)
             alertDialog.dismiss()
         }
         alertDialog.show()
     }
 
-    fun setUpMemorable(activity: Context, listener: MemorableListener?) {
-        val client = OkHttpClient()
-
-        val request = Request.Builder()
-            .url("http://demo9782239.mockable.io/images")
-            .build()
-
+    fun setUpMemorable(
+        listener: MemorableListener?,
+        memoryItems: MutableList<MemoryItem>,
+        numClicks: Int,
+        init: Boolean,
+        imageOne: Int?,
+        imageTwo: Int?,
+        movements: Int,
+        count: Int
+    ) {
+        this.movements = movements
+        this.count = count
+        this.itemOne = imageOne
+        this.itemTwo = imageTwo
+        this.numClicks = numClicks
+        this.memoryItems = memoryItems
+        Log.wtf("memoryItems", this.memoryItems.size.toString())
         timeTextView = findViewById(R.id.tv_user_time)
         timeTextView.text = ("$count segundos")
-        gridView = findViewById(R.id.grid_view)
+        recyclerView = findViewById(R.id.recycler_view)
         movementsTextView = findViewById(R.id.tv_user_movements)
         movementsTextView.text = ("$movements movimientos")
 
-        mHandler = Handler()
-
-        mHandler!!.post {
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    System.out.println("request failed: " + e.message)
+        mTimer = Timer()
+        mTimer?.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                this@MemorableView.activity!!.runOnUiThread {
+                    this@MemorableView.count++
+                    timeTextView.text = ("${this@MemorableView.count} segundos")
                 }
+            }
+        }, 1000, 1000)
 
-                override fun onResponse(call: Call, response: Response) {
-                    val jsonObject = JSONObject(response.body()!!.string())
-                    val jsonArray = jsonObject.getJSONArray("images")
-
-                    for (i in 0 until jsonArray.length()) {
-                        val obj = jsonArray.getString(i)
-                        //val url = URL(obj)
-                        //val image = BitmapFactory.decodeStream(url.openConnection().getInputStream())
-                        images.add(ImagesMem(obj, i, false,false, false,1))
-                        images.add(ImagesMem(obj, i, false,false, false,2))
-                    }
-
-                    val timer = Timer()
-                    timer.scheduleAtFixedRate(object : TimerTask() {
-                        override fun run() {
-                            this@MemorableView.activity!!.runOnUiThread {
-                                count++
-                                timeTextView.text = ("$count segundos")
-                            }
-                        }
-                    }, 1000, 1000)
-
-                    this@MemorableView.activity!!.runOnUiThread {
-                        this@MemorableView.listener = listener
-                        listener?.onInitialize()
-                        images.shuffle()
-                        if ((images.size / 2)%3 == 0){
-                            columns = 3
-                            gridView.numColumns = columns
-                        } else {
-                            columns = 4
-                            gridView.numColumns = columns
-                        }
-                        gridView.adapter = ImageAdapter(images)
-                        gridView.onItemClickListener = AdapterView.OnItemClickListener { _, view, position, _ ->
-                            numClicks += 1
-                            images[position].view = true
-                            imageView = view.findViewById(R.id.iv_icon)
-                            for (i in 0 until images.size){
-                                images[i].flip = false
-                            }
-                            when (numClicks) {
-                                1 -> {
-                                    imageOne = position
-                                    if (!images[imageOne].match){
-                                        flipImage(imageView, images[imageOne].image)
-                                    }
-                                }
-                                2 -> {
-                                    imageTwo = position
-                                    if (!images[imageTwo].match && imageOne != imageTwo){
-                                        flipImage(imageView, images[imageTwo].image)
-                                    }
-                                    if (images[imageOne].view && images[imageTwo].view
-                                        && images[imageOne].type == images[imageTwo].type
-                                        && images[imageOne].number != images[imageTwo].number
-                                        && !images[imageOne].match && !images[imageTwo].match) {
-                                        images[imageOne].match = true
-                                        images[imageTwo].match = true
-                                        checkResult(timer, activity)
-                                    } else if (images[imageOne].match && images[imageTwo].match) {
-                                        numClicks = 0
-                                    } else if (!images[imageOne].match && images[imageTwo].match) {
-                                        numClicks = 1
-                                        gridView.adapter = ImageAdapter(images)
-                                    } else if (images[imageOne].match && !images[imageTwo].match) {
-                                        numClicks = 1
-                                        imageOne = imageTwo
-                                        gridView.adapter = ImageAdapter(images)
-                                    } else if (images[imageOne].type == images[imageTwo].type) {
-                                         numClicks = 1
-                                    } else {
-                                        images[imageOne].view = false
-                                        images[imageTwo].view = true
-                                    }
-                                }
-                                3 -> {
-                                    if (imageOne != position){
-                                        images[imageOne].flip = true
-                                    }
-                                    if (imageTwo != position){
-                                        images[imageTwo].flip = true
-                                    }
-                                    gridView.adapter = ImageAdapter(images)
-                                    checkResult(timer, activity)
-                                    imageOne = position
-                                    images[imageOne].view = true
-                                    if (!images[imageOne].match){
-                                        flipImage(imageView, images[imageOne].image)
-                                    }
-                                    numClicks = 1
-                                }
-                            }
-                        }
-                    }
-                }
-            })
+        this@MemorableView.listener = listener
+        listener?.onInitialize()
+        if (init) this.memoryItems.shuffle()
+        recyclerView.apply {
+            layoutManager = GridLayoutManager(context, 3)
         }
+        recyclerView.adapter = MemoryGameAdapter()
+
     }
 
     fun getMovements(): Int {
@@ -218,109 +136,138 @@ class MemorableView @kotlin.jvm.JvmOverloads constructor(
         return count
     }
 
-    private fun flipImage(imageView: ImageView, image: String) {
-        val oa1 = ObjectAnimator.ofFloat(imageView, "scaleX", 1f, 0f)
-        val oa2 = ObjectAnimator.ofFloat(imageView, "scaleX", 0f, 1f)
-        oa1.interpolator = DecelerateInterpolator()
-        oa2.interpolator = AccelerateDecelerateInterpolator()
-        oa1.duration = 100
-        oa2.duration = 100
-        oa1.addListener(object: AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                super.onAnimationEnd(animation)
-                Picasso.get()
-                    .load(image)
-                    .into(imageView)
-                oa2.start()
-            }
-        })
-        oa1.start()
-    }
-
-    private fun checkResult(timer: Timer, activity: Context) {
+    private fun checkResult(timer: Timer?, activity: Context) {
         var matches = 0
-        for (i in 0 until images.size){
-            if (images[i].match){
+        for (i in 0 until memoryItems.size){
+            if (memoryItems[i].match){
                 matches++
             }
         }
-        if (matches == images.size){
+        if (matches == memoryItems.size){
             finish = true
         }
         if (finish){
             numClicks = 0
-            timer.cancel()
+            timer?.cancel()
             listener?.onFinalize()
             simpleAlertDialog("Lo lograste en $movements movimientos y te tomó $count segundos", activity)
         } else {
-            images[imageOne].view = false
-            images[imageTwo].view = false
+            memoryItems[itemOne!!].view = false
+            memoryItems[itemTwo!!].view = false
             movements += 1
             movementsTextView.text = ("$movements movimientos")
             numClicks = 0
         }
     }
 
-    @Suppress("NAME_SHADOWING")
-    internal inner class ImageAdapter(private val imagesMem: List<ImagesMem>) : BaseAdapter() {
+    fun getNumClicks(): Int {
+        return numClicks
+    }
 
-        override fun getCount(): Int {
-            return imagesMem.size
-        }
+    fun getImages(): List<Parcelable> {
+        return memoryItems
+    }
 
-        override fun getItem(position: Int): Any {
-            return imagesMem[position]
+    fun getImageOne(): Int? {
+        return itemOne
+    }
+
+    fun getImageTwo(): Int? {
+        return itemTwo
+    }
+
+    internal inner class MemoryGameAdapter() : RecyclerView.Adapter<MemoryGameAdapter.ViewHolder>() {
+
+        override fun getItemCount(): Int {
+            return memoryItems.size
         }
 
         override fun getItemId(position: Int): Long {
-            return imagesMem[position].hashCode().toLong()
+            return memoryItems[position].hashCode().toLong()
         }
 
-        @SuppressLint("SetTextI18n", "InflateParams", "ViewHolder")
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val convertView: View
-
-            convertView = if (columns == 3){
-                val layoutInflater = LayoutInflater.from(activity!!.applicationContext)
-                layoutInflater.inflate(R.layout.image_layout_three, null)
-            } else {
-                val layoutInflater = LayoutInflater.from(activity!!.applicationContext)
-                layoutInflater.inflate(R.layout.image_layout_four, null)
-            }
-
-            val ivIcon = convertView.findViewById<ImageView>(R.id.iv_icon)
-
-            if (imagesMem[position].flip){
-                flipImage(ivIcon, R.drawable.background)
-            } else if (imagesMem[position].match || imagesMem[position].view){
-                Picasso.get()
-                    .load(imagesMem[position].image)
-                    .into(ivIcon)
-            } else if (!imagesMem[position].view){
-                Picasso.get()
-                    .load(R.drawable.background)
-                    .into(ivIcon)
-            }
-            return convertView
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val layoutInflater = LayoutInflater.from(activity!!.applicationContext)
+                .cloneInContext(ContextThemeWrapper(context, R.style.AppTheme))
+            val mConvertView = layoutInflater.inflate(R.layout.image_layout, parent, false)
+            return ViewHolder(mConvertView)
         }
 
-        private fun flipImage(imageView: ImageView, image: Int) {
-            val oa1 = ObjectAnimator.ofFloat(imageView, "scaleX", 1f, 0f)
-            val oa2 = ObjectAnimator.ofFloat(imageView, "scaleX", 0f, 1f)
-            oa1.interpolator = DecelerateInterpolator()
-            oa2.interpolator = AccelerateDecelerateInterpolator()
-            oa1.duration = 100
-            oa2.duration = 100
-            oa1.addListener(object: AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    super.onAnimationEnd(animation)
-                    Picasso.get()
-                        .load(image)
-                        .into(imageView)
-                    oa2.start()
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(memoryItems[position], position)
+        }
+
+        inner class ViewHolder(itemView: View): RecyclerView.ViewHolder(itemView), OnClickListener {
+
+            lateinit var mMemoryItem: MemoryItem
+            var mPosition: Int? = null
+
+            fun bind(imageMem: MemoryItem, position: Int) {
+                mPosition = position
+                mMemoryItem = imageMem
+
+                val ivIcon = itemView.findViewById<ImageView>(R.id.iv_icon)
+                ivIcon.setOnClickListener(this)
+
+                if (mPosition != null) {
+                    if (memoryItems[mPosition!!].match || memoryItems[mPosition!!].view) {
+                        ivIcon.flipImage(memoryItems[mPosition!!].image)
+                    } else if (!memoryItems[mPosition!!].view) {
+                        ivIcon.flipImage(R.drawable.background)
+                    }
                 }
-            })
-            oa1.start()
+            }
+
+            override fun onClick(p0: View?) {
+                numClicks += 1
+                memoryItems[mPosition!!].view = true
+                imageView = itemView.findViewById(R.id.iv_icon)
+                when (numClicks) {
+                    1 -> {
+                        itemOne = mPosition!!
+                        if (!memoryItems[itemOne!!].match){
+                            imageView.flipImage(memoryItems[itemOne!!].image)
+                        }
+                    }
+                    2 -> {
+                        itemTwo = mPosition!!
+                        if (!memoryItems[itemTwo!!].match && itemOne != itemTwo){
+                            imageView.flipImage(memoryItems[itemTwo!!].image)
+                        }
+                        if (memoryItems[itemOne!!].view && memoryItems[itemTwo!!].view
+                            && memoryItems[itemOne!!].type == memoryItems[itemTwo!!].type
+                            && memoryItems[itemOne!!].number != memoryItems[itemTwo!!].number
+                            && !memoryItems[itemOne!!].match && !memoryItems[itemTwo!!].match) {
+                            memoryItems[itemOne!!].match = true
+                            memoryItems[itemTwo!!].match = true
+                            checkResult(mTimer, activity!!)
+                        } else if (memoryItems[itemOne!!].match && memoryItems[itemTwo!!].match) {
+                            numClicks = 0
+                        } else if (!memoryItems[itemOne!!].match && memoryItems[itemTwo!!].match) {
+                            numClicks = 1
+                        } else if (memoryItems[itemOne!!].match && !memoryItems[itemTwo!!].match) {
+                            numClicks = 1
+                            itemOne = itemTwo
+                        } else if (memoryItems[itemOne!!].type == memoryItems[itemTwo!!].type) {
+                            numClicks = 1
+                        }
+                    }
+                    3 -> {
+                        if (itemOne!! != mPosition) {
+                            notifyItemChanged(itemOne!!)
+                        }
+                        if (itemTwo!! != mPosition) {
+                            notifyItemChanged(itemTwo!!)
+                        }
+                        checkResult(mTimer, activity!!)
+                        itemOne = mPosition!!
+                        if (!memoryItems[itemOne!!].match){
+                            imageView.flipImage(memoryItems[itemOne!!].image)
+                        }
+                        numClicks = 1
+                    }
+                }
+            }
         }
     }
 }
