@@ -1,3 +1,12 @@
 <resources>
-	<string name="app_name">Memorable</string>
+	<string name="app_name">Memory Game</string>
+    <string name="activity_lobby_background">Background</string>
+    <string name="activity_lobby_instruction">Select layout to start game</string>
+    <string name="activity_memory_game_victory">VICTORY!</string>
+    <string name="activity_memory_game_back">Back</string>
+    <string name="activity_memory_game_move">%d move</string>
+    <string name="activity_memory_game_second">%d second</string>
+    <string name="activity_memory_game_moves">%d moves</string>
+    <string name="activity_memory_game_seconds">%d seconds</string>
+    <string name="activity_memory_game_restart">Restart</string>
 </resources>

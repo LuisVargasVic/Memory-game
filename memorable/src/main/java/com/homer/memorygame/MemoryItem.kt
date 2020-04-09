@@ -1,10 +1,10 @@
-package com.adventa.memorable
+package com.homer.memorygame
 
 import android.os.Parcel
 import android.os.Parcelable
 
 /**
- * Created by jonathan on 11/16/18.
+ * Created by Luis Vargas on 11/16/18.
  */
 
 data class MemoryItem(
